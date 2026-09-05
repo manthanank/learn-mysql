@@ -1,4 +1,4 @@
-# Enterprise MySQL 8 Masterclass & Production Architecture Guide
+# Learn MySQL: The Complete Beginner-to-Expert Masterclass
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Node.js](https://img.shields.io/badge/Node.js-20.x%20%7C%2022.x-339933?logo=nodedotjs)](https://nodejs.org/)
@@ -8,68 +8,209 @@
 [![Vitest](https://img.shields.io/badge/Vitest-3.x-6E9F18?logo=vitest)](https://vitest.dev/)
 [![Docker](https://img.shields.io/badge/Docker-Multi--Stage-2496ED?logo=docker)](https://www.docker.com/)
 
-A definitive, production-grade technical manual and interactive sandbox for **MySQL 8.0 & 8.4 LTS**. Engineered for senior database architects, backend platform engineers, and full-stack developers requiring zero-compromise reliability, high-throughput ACID compliance, sub-millisecond query optimization, and enterprise replication topologies.
+A definitive, production-grade **beginner-to-expert technical guide** and interactive sandbox for **MySQL 8.0 & 8.4 LTS**. This curriculum starts with zero-prerequisite database concepts, table design, and daily SQL commands, progresses through intermediate server architecture and query execution, delves into the low-level internals of the InnoDB storage engine (Buffer Pool, WAL Redo/Undo logs, MVCC, and Next-Key locking), and culminates in enterprise replication topologies, GTID failover, and high-performance indexing.
+
+---
+
+## Pedagogical Roadmap: Beginner to Expert
+
+```text
++-----------------------------------------------------------------------------------------------+
+|                                  THE MYSQL LEARNING JOURNEY                                   |
++-------------------+-------------------+-----------------------+-------------------------------+
+| STAGE 1           | STAGE 2           | STAGE 3 & 4           | STAGE 5 & 6                   |
+| Absolute Beginner | Intermediate Dev  | Advanced Internals    | Expert Storage & Staff Arch   |
++-------------------+-------------------+-----------------------+-------------------------------+
+| • What is MySQL?  | • Two-Tier Arch   | • InnoDB Engine       | • Group Replication & GTID    |
+| • Tables & Keys   | • Query Lifecycle | • Buffer Pool & LRU   | • Horizontal Partitioning     |
+| • SELECT, WHERE   | • Pluggable Engine| • Redo/Undo & MVCC    | • Zero-Downtime Online DDL    |
+| • INSERT, UPDATE  | • Basic Joins     | • B+ Tree Clustered   | • Point-in-Time Recovery      |
+| • AUTO_INCREMENT  | • Schema Normaliz.| • EXPLAIN & Optimizer | • 25 Staff Interview Q&A      |
++-------------------+-------------------+-----------------------+-------------------------------+
+```
 
 ---
 
 ## Table of Contents
 
-1. [Architectural Overview & Core Server Topology](#1-architectural-overview--core-server-topology)
+1. [Stage 1: Absolute Beginner Foundations](#1-stage-1-absolute-beginner-foundations)
+   - [What is MySQL? Relational Databases & The SQL Standard](#what-is-mysql-relational-databases--the-sql-standard)
+   - [Connecting to MySQL & Essential CLI Commands](#connecting-to-mysql--essential-cli-commands)
+   - [Creating Your First Database & Table](#creating-your-first-database--table)
+   - [MySQL Data Types Demystified: Numeric, String & Temporal](#mysql-data-types-demystified-numeric-string--temporal)
+   - [Primary Keys & `AUTO_INCREMENT` Mechanics](#primary-keys--auto_increment-mechanics)
+   - [Basic Data Manipulation: `INSERT`, `SELECT`, `UPDATE`, `DELETE`](#basic-data-manipulation-insert-select-update-delete)
+   - [Filtering & Sorting: `WHERE`, `ORDER BY`, and `LIMIT`](#filtering--sorting-where-order-by-and-limit)
+2. [Stage 2: Intermediate Server Architecture & Storage Engines](#2-stage-2-intermediate-server-architecture--storage-engines)
    - [MySQL Server Two-Tier Architecture](#mysql-server-two-tier-architecture)
    - [Query Execution Lifecycle](#query-execution-lifecycle)
    - [Pluggable Storage Engine Interface](#pluggable-storage-engine-interface)
-2. [InnoDB Storage Engine Deep Dive](#2-innodb-storage-engine-deep-dive)
+3. [Stage 3: InnoDB Storage Engine Deep Dive & ACID Guarantees](#3-stage-3-innodb-storage-engine-deep-dive--acid-guarantees)
    - [Buffer Pool Architecture & LRU Sublists](#buffer-pool-architecture--lru-sublists)
    - [Write-Ahead Logging (WAL) & Redo Log](#write-ahead-logging-wal--redo-log)
    - [Undo Logs, Rollback Segments & MVCC](#undo-logs-rollback-segments--mvcc)
    - [Doublewrite Buffer & Torn Page Protection](#doublewrite-buffer--torn-page-protection)
-   - [Adaptive Hash Index (AHI) & Change Buffer](#adaptive-hash-index-ahi--change-buffer)
-3. [ACID Guarantees & Transaction Isolation](#3-acid-guarantees--transaction-isolation)
-   - [Mechanical Implementation of ACID](#mechanical-implementation-of-acid)
-   - [The 4 ANSI SQL Isolation Levels](#the-4-ansi-sql-isolation-levels)
-   - [Concurrency Phenomena & Inconsistencies](#concurrency-phenomena--inconsistencies)
    - [InnoDB Locking Mechanics: Record, Gap, Next-Key & Deadlocks](#innodb-locking-mechanics-record-gap-next-key--deadlocks)
-4. [Advanced SQL & Relational Algebra](#4-advanced-sql--relational-algebra)
+4. [Stage 4: Advanced SQL, Index Engineering & Query Optimization](#4-stage-4-advanced-sql-index-engineering--query-optimization)
    - [Window Functions (Ranking, Value, Frame Clauses)](#window-functions-ranking-value-frame-clauses)
    - [Common Table Expressions (CTEs) & Recursive Hierarchies](#common-table-expressions-ctes--recursive-hierarchies)
-   - [Join Strategies: NLJ, Block Nested-Loop & Hash Join](#join-strategies-nlj-block-nested-loop--hash-join)
-   - [Native JSON Data Type & JSON_TABLE Virtualization](#native-json-data-type--json_table-virtualization)
-5. [Index Engineering & B+Tree Internals](#5-index-engineering--btree-internals)
    - [B+Tree Node Structure & Clustered vs Secondary Indexes](#btree-node-structure--clustered-vs-secondary-indexes)
-   - [The Leftmost Prefix Rule & Multi-Column Ordering](#the-leftmost-prefix-rule--multi-column-ordering)
-   - [Covering Indexes (Index-Only Scans)](#covering-indexes-index-only-scans)
-   - [Functional, Invisible & Multi-Valued Indexes](#functional-invisible--multi-valued-indexes)
-   - [Anti-Patterns: SARGability, Type Coercion & Leading Wildcards](#anti-patterns-sargability-type-coercion--leading-wildcards)
-6. [Query Optimization & EXPLAIN Analyzer](#6-query-optimization--explain-analyzer)
    - [Interpreting EXPLAIN & EXPLAIN ANALYZE Output](#interpreting-explain--explain-analyze-output)
-   - [Join Types Hierarchy (system to ALL)](#join-types-hierarchy-system-to-all)
-   - [Decoding Extra Flags: filesort, temporary, index condition](#decoding-extra-flags-filesort-temporary-index-condition)
-   - [Eliminating Filesort & Temporary Disk Tables](#eliminating-filesort--temporary-disk-tables)
-   - [Optimizer Hints & Plan Directives](#optimizer-hints--plan-directives)
-7. [Schema Design, Normalization & Partitioning](#7-schema-design-normalization--partitioning)
+5. [Stage 5: Schema Design, Partitioning & Enterprise Replication](#5-stage-5-schema-design-partitioning--enterprise-replication)
    - [1NF Through BCNF & Strategic Denormalization](#1nf-through-bcnf--strategic-denormalization)
-   - [High-Performance Data Types & Temporal Storage](#high-performance-data-types--temporal-storage)
    - [Horizontal Table Partitioning (Range, List, Hash, Key)](#horizontal-table-partitioning-range-list-hash-key)
-   - [Zero-Downtime Online DDL vs gh-ost/pt-osc](#zero-downtime-online-ddl-vs-gh-ostpt-osc)
-8. [Replication, High Availability & Disaster Recovery](#8-replication-high-availability--disaster-recovery)
    - [Replication Topologies: Async, Semi-Sync, Group Replication](#replication-topologies-async-semi-sync-group-replication)
    - [Binary Log Formats & GTID Auto-Positioning](#binary-log-formats--gtid-auto-positioning)
-   - [Physical vs Logical Backups (Percona XtraBackup vs mysqldump)](#physical-vs-logical-backups-percona-xtrabackup-vs-mysqldump)
-   - [Point-in-Time Recovery (PITR) Execution](#point-in-time-recovery-pitr-execution)
-9. [Enterprise Node.js / TypeScript Integration (`mysql2`)](#9-enterprise-nodejs--typescript-integration-mysql2)
-   - [High-Throughput Connection Pooling Architecture](#high-throughput-connection-pooling-architecture)
-   - [Prepared Statements & SQL Injection Defense](#prepared-statements--sql-injection-defense)
-   - [Transaction Manager with Automatic Deadlock Retries](#transaction-manager-with-automatic-deadlock-retries)
-10. [Security, Performance Schema & Observability](#10-security-performance-schema--observability)
-    - [Role-Based Access Control (RBAC) & TLS 1.3](#role-based-access-control-rbac--tls-13)
-    - [Performance Schema & sys Schema Diagnostics](#performance-schema--sys-schema-diagnostics)
-    - [Slow Query Log Tuning](#slow-query-log-tuning)
-11. [40 Senior & Staff MySQL Interview Questions](#11-40-senior--staff-mysql-interview-questions)
-12. [Production Cheat Sheet & Operational Runbook](#12-production-cheat-sheet--operational-runbook)
+6. [Stage 6: Staff & Principal MySQL Interview Masterclass (25 Q&A)](#6-stage-6-staff--principal-mysql-interview-masterclass-25-qa)
+7. [Stage 7: Interactive Platform, Simulator & REST API Reference](#7-stage-7-interactive-platform-simulator--rest-api-reference)
 
 ---
 
-## 1. Architectural Overview & Core Server Topology
+## 1. Stage 1: Absolute Beginner Foundations
+
+### What is MySQL? Relational Databases & The SQL Standard
+
+**MySQL** is the world's most widely deployed open-source **Relational Database Management System (RDBMS)**, powering modern web applications at companies like Meta (Facebook), Uber, Netflix, and GitHub.
+
+In MySQL:
+- Data is organized into structured **Databases (Schemas)** containing two-dimensional **Tables**.
+- Tables consist of **Columns** (fields specifying data types and constraints) and **Rows** (individual records).
+- Tables can establish relationships through **Foreign Keys**, ensuring relational integrity.
+- Transactions adhere to **ACID** (Atomicity, Consistency, Isolation, Durability) guarantees powered by the **InnoDB** storage engine.
+
+---
+
+### Connecting to MySQL & Essential CLI Commands
+
+Access the MySQL interactive shell via the command-line client:
+
+```bash
+# Connect as root user (prompts for password)
+mysql -u root -p
+
+# Connect to a remote MySQL server on port 3306
+mysql -h db.example.com -P 3306 -u myuser -p mydatabase
+```
+
+Once inside the MySQL prompt (`mysql>`), use these everyday commands:
+
+```sql
+-- List all databases on the server
+SHOW DATABASES;
+
+-- Select a database to work with
+USE my_company_db;
+
+-- List all tables in the currently active database
+SHOW TABLES;
+
+-- Inspect column names, data types, and nullability of a table
+DESCRIBE employees;
+
+-- Check server version and current user
+SELECT VERSION(), CURRENT_USER();
+```
+
+---
+
+### Creating Your First Database & Table
+
+```sql
+-- 1. Create a database with UTF-8 character encoding
+CREATE DATABASE IF NOT EXISTS store_db
+  CHARACTER SET utf8mb4
+  COLLATE utf8mb4_unicode_ci;
+
+USE store_db;
+
+-- 2. Create an orders table with constraints
+CREATE TABLE IF NOT EXISTS orders (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    customer_email VARCHAR(255) NOT NULL,
+    total_amount DECIMAL(10, 2) NOT NULL,
+    status ENUM('pending', 'paid', 'shipped', 'cancelled') DEFAULT 'pending',
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+```
+
+---
+
+### MySQL Data Types Demystified: Numeric, String & Temporal
+
+Choosing the optimal data type reduces storage consumption and accelerates memory caching:
+
+| Category | Data Type | Storage Size | Ideal Use Case |
+| :--- | :--- | :--- | :--- |
+| **Integer** | `TINYINT` | 1 Byte (-128 to 127) | Boolean flags (0/1), age |
+| **Integer** | `INT UNSIGNED` | 4 Bytes (0 to 4.29 Billion) | Standard auto-increment IDs |
+| **Integer** | `BIGINT UNSIGNED` | 8 Bytes (0 to 18 Quintillion) | High-volume distributed IDs |
+| **Decimal** | `DECIMAL(M, D)` | Exact Precision | Currency, financial balances |
+| **String** | `VARCHAR(N)` | Variable + 1-2 bytes length | Usernames, emails, titles |
+| **String** | `TEXT` | Variable (up to 64KB) | Blog bodies, long descriptions |
+| **Temporal**| `DATETIME` | 5 Bytes (Year 1000 to 9999) | Explicit dates independent of timezone |
+| **Temporal**| `TIMESTAMP` | 4 Bytes (UTC internally) | Audit trails (`created_at`, `updated_at`) |
+
+---
+
+### Primary Keys & `AUTO_INCREMENT` Mechanics
+
+Every relational table requires a **Primary Key** to uniquely distinguish each row. In MySQL with InnoDB, the primary key defines the **Clustered Index**, meaning the actual table rows are physically organized on disk in primary key order:
+
+```sql
+CREATE TABLE products (
+    id INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+    sku VARCHAR(50) NOT NULL UNIQUE,
+    title VARCHAR(100) NOT NULL,
+    price DECIMAL(8, 2) NOT NULL
+);
+```
+
+When you insert a row without specifying `id`, MySQL automatically assigns `id = 1`, `id = 2`, etc. You can fetch the generated ID in application code via `SELECT LAST_INSERT_ID()`.
+
+---
+
+### Basic Data Manipulation: `INSERT`, `SELECT`, `UPDATE`, `DELETE`
+
+```sql
+-- 1. INSERT (Create)
+INSERT INTO products (sku, title, price)
+VALUES 
+    ('TECH-001', 'Mechanical Keyboard', 129.99),
+    ('TECH-002', 'Wireless Gaming Mouse', 79.50);
+
+-- 2. SELECT (Read)
+SELECT sku, title, price 
+FROM products;
+
+-- 3. UPDATE (Modify existing rows)
+UPDATE products
+SET price = 119.99
+WHERE sku = 'TECH-001';
+
+-- 4. DELETE (Remove rows)
+DELETE FROM products
+WHERE sku = 'TECH-002';
+```
+
+---
+
+### Filtering & Sorting: `WHERE`, `ORDER BY`, and `LIMIT`
+
+```sql
+-- Filter with multiple boolean conditions
+SELECT title, price
+FROM products
+WHERE price BETWEEN 50.00 AND 150.00
+  AND title LIKE '%Keyboard%'
+ORDER BY price DESC
+LIMIT 5 OFFSET 0;
+```
+
+---
+
+## 2. Stage 2: Intermediate Server Architecture & Storage Engines
+
+---
 
 ### MySQL Server Two-Tier Architecture
 
@@ -133,7 +274,9 @@ MySQL is architected as a two-tier system decoupling the **SQL Layer (Server Lay
 
 ---
 
-## 2. InnoDB Storage Engine Deep Dive
+## 3. Stage 3: InnoDB Storage Engine Deep Dive & ACID Guarantees
+
+### InnoDB Storage Engine Deep Dive
 
 InnoDB is the default, ACID-compliant, high-performance transaction storage engine in MySQL 8.
 
@@ -215,8 +358,9 @@ Undo logs store historical versions of modified rows:
 - **Adaptive Hash Index (AHI)**: Automatically builds an in-memory hash table on top of heavily accessed B+Tree pages (`innodb_adaptive_hash_index = ON`), turning O(log N) tree navigations into O(1) pointer lookups.
 - **Change Buffer**: Caches modifications to secondary index pages that are not currently in the Buffer Pool, merging them into memory asynchronously when the pages are later loaded by queries.
 
+---
 
-## 3. ACID Guarantees & Transaction Isolation
+### ACID Guarantees & Transaction Isolation
 
 ### Mechanical Implementation of ACID
 
@@ -319,8 +463,11 @@ async function withDeadlockRetry<T>(fn: () => Promise<T>, maxRetries = 3): Promi
 }
 ```
 
+---
 
-## 4. Advanced SQL & Relational Algebra
+## 4. Stage 4: Advanced SQL, Index Engineering & Query Optimization
+
+### Advanced SQL & Relational Algebra
 
 ### Window Functions (Ranking, Value, Frame Clauses)
 
@@ -506,8 +653,9 @@ JSON_TABLE(
 ) AS skills;
 ```
 
+---
 
-## 5. Index Engineering & B+Tree Internals
+### Index Engineering & B+Tree Internals
 
 ### B+Tree Node Structure & Clustered vs Secondary Indexes
 
@@ -640,8 +788,9 @@ SELECT * FROM products WHERE 42 MEMBER OF (tags);
 4. **Negation Queries**:
    - `!=`, `<>`, `NOT IN` rarely use indexes because B+Tree is optimized for locating contiguous values, not omissions.
 
+---
 
-## 6. Query Optimization & EXPLAIN Analyzer
+### Query Optimization & EXPLAIN Analyzer
 
 ### Interpreting EXPLAIN & EXPLAIN ANALYZE Output
 
@@ -762,8 +911,11 @@ JOIN departments d ON u.department_id = d.id
 WHERE u.department_id = 1;
 ```
 
+---
 
-## 7. Schema Design, Normalization & Partitioning
+## 5. Stage 5: Schema Design, Partitioning & Enterprise Replication
+
+### Schema Design, Normalization & Partitioning
 
 ### 1NF Through BCNF & Strategic Denormalization
 
@@ -827,7 +979,7 @@ For complex operations that take table-level exclusive locks (e.g. changing colu
 
 ---
 
-## 8. Replication, High Availability & Disaster Recovery
+### Replication, High Availability & Disaster Recovery
 
 ### Replication Topologies: Async, Semi-Sync, Group Replication
 
@@ -885,7 +1037,7 @@ mysqlbinlog --read-from-remote-server \
 
 ---
 
-## 9. Enterprise Node.js / TypeScript Integration (`mysql2`)
+### Enterprise Node.js / TypeScript Integration (`mysql2`)
 
 ### High-Throughput Connection Pooling Architecture
 
@@ -946,8 +1098,9 @@ export async function runTransaction<T>(
 }
 ```
 
+---
 
-## 10. Security, Performance Schema & Observability
+### Security, Performance Schema & Observability
 
 ### Role-Based Access Control (RBAC) & TLS 1.3
 ```sql
@@ -981,7 +1134,9 @@ ORDER BY allocated DESC LIMIT 10;
 
 ---
 
-## 11. 40 Senior & Staff MySQL Interview Questions
+## 6. Stage 6: Staff & Principal MySQL Interview Masterclass (25 Q&A)
+
+### 40 Senior & Staff MySQL Interview Questions
 
 <details>
 <summary><strong>1. Explain how InnoDB's Buffer Pool uses the midpoint insertion strategy to avoid cache thrashing.</strong></summary>
@@ -1185,7 +1340,9 @@ Group Replication is a high-availability solution providing multi-master update-
 
 ---
 
-## 12. Production Cheat Sheet & Operational Runbook
+## 7. Stage 7: Interactive Platform, Simulator & REST API Reference
+
+### Production Cheat Sheet & Operational Runbook
 
 ### Key Administrative Commands
 ```sql
