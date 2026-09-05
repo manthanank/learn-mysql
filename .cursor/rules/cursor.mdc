@@ -1,0 +1,12 @@
+---
+description: Cursor rules for learn-mysql project
+globs: ["src/**/*.ts", "public/**/*", "package.json"]
+---
+
+# Cursor AI Rules for learn-mysql
+
+- **TypeScript Standard**: ES2022, NodeNext resolution, strict typing.
+- **Imports**: Always use explicit `.js` extension on relative module imports.
+- **Express 5**: Async route handlers must delegate uncaught errors to `next(err)`.
+- **Database Fallback**: Never require live MySQL connection for tests; ensure `mockRelationalDb` fallback handles disconnected states.
+- **Query Optimization**: Avoid `SELECT *` in production code; use prepared statements and composite indexes following the Leftmost Prefix rule.

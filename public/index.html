@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MySQL 8 & InnoDB Enterprise Sandbox & Curriculum</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0b1120;
+      --bg-secondary: #131c31;
+      --bg-card: rgba(19, 28, 49, 0.75);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --accent-blue: #00758f;
+      --accent-cyan: #38bdf8;
+      --accent-orange: #f29111;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --font-main: 'Outfit', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: var(--bg-primary);
+      color: var(--text-main);
+      font-family: var(--font-main);
+      min-height: 100vh;
+      line-height: 1.6;
+      background-image: 
+        radial-gradient(circle at 15% 20%, rgba(0, 117, 143, 0.1) 0%, transparent 40%),
+        radial-gradient(circle at 85% 75%, rgba(242, 145, 17, 0.08) 0%, transparent 45%);
+    }
+
+    header {
+      padding: 2.5rem 2rem 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+      background: rgba(11, 17, 32, 0.85);
+      backdrop-filter: blur(12px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+
+    .header-container {
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 1rem;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 0.85rem;
+    }
+
+    .brand-badge {
+      background: linear-gradient(135deg, var(--accent-blue), var(--accent-orange));
+      color: #fff;
+      font-weight: 700;
+      font-size: 0.85rem;
+      padding: 0.35rem 0.75rem;
+      border-radius: 9999px;
+      letter-spacing: 0.05em;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      background: linear-gradient(to right, #ffffff, var(--accent-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .status-pill {
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: var(--accent-cyan);
+      padding: 0.4rem 0.9rem;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .dot {
+      width: 8px;
+      height: 8px;
+      background: var(--accent-cyan);
+      border-radius: 50%;
+      box-shadow: 0 0 10px var(--accent-cyan);
+    }
+
+    main {
+      max-width: 1200px;
+      margin: 2rem auto;
+      padding: 0 1.5rem;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+    }
+
+    @media (min-width: 900px) {
+      main {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.5rem;
+      backdrop-filter: blur(8px);
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+      box-shadow: 0 10px 30px -10px rgba(0,0,0,0.5);
+    }
+
+    .card.full-width {
+      grid-column: 1 / -1;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.75rem;
+    }
+
+    .card-title {
+      font-size: 1.15rem;
+      font-weight: 600;
+      color: #fff;
+    }
+
+    label {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-muted);
+      margin-bottom: 0.25rem;
+      display: block;
+    }
+
+    input, textarea, select {
+      width: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      color: #fff;
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      padding: 0.65rem 0.85rem;
+      transition: border-color 0.2s;
+    }
+
+    input:focus, textarea:focus, select:focus {
+      outline: none;
+      border-color: var(--accent-cyan);
+    }
+
+    button {
+      background: linear-gradient(135deg, #0284c7, var(--accent-cyan));
+      color: #04202c;
+      font-family: var(--font-main);
+      font-weight: 600;
+      font-size: 0.9rem;
+      padding: 0.7rem 1.2rem;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.15s, opacity 0.15s;
+    }
+
+    button:hover {
+      opacity: 0.95;
+      transform: translateY(-1px);
+    }
+
+    pre {
+      background: #060a14;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 1rem;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: #bae6fd;
+      overflow-x: auto;
+      max-height: 280px;
+    }
+
+    .grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1rem;
+    }
+
+    .user-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      margin-top: 0.5rem;
+    }
+
+    .user-table th, .user-table td {
+      padding: 0.6rem 0.75rem;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .user-table th {
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 0.15rem 0.45rem;
+      border-radius: 4px;
+      font-size: 0.75rem;
+      background: rgba(56, 189, 248, 0.15);
+      color: var(--accent-cyan);
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <div class="header-container">
+      <div class="brand">
+        <span class="brand-badge">MYSQL 8</span>
+        <h1>InnoDB Relational Engine & SQL Optimizer Sandbox</h1>
+      </div>
+      <div class="status-pill">
+        <span class="dot"></span>
+        <span id="system-status">Pool Connected</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <!-- Card 1: Users & Departments Relational Table -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">Relational Tables (Users & Departments)</span>
+        <button onclick="loadUsers()" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;">Refresh</button>
+      </div>
+      <div class="grid-2">
+        <div>
+          <label>Filter by Department</label>
+          <select id="dept-filter" onchange="loadUsers()">
+            <option value="">All Departments</option>
+            <option value="1">Engineering</option>
+            <option value="2">Data Platforms</option>
+            <option value="3">DevOps & SRE</option>
+            <option value="4">Product & Design</option>
+          </select>
+        </div>
+        <div>
+          <label>Search Name / Email</label>
+          <input type="text" id="search-input" placeholder="Search..." oninput="loadUsers()">
+        </div>
+      </div>
+      <div style="overflow-x: auto;">
+        <table class="user-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name & Email</th>
+              <th>Department</th>
+              <th>Salary</th>
+            </tr>
+          </thead>
+          <tbody id="user-rows">
+            <tr><td colspan="4" style="text-align: center; color: var(--text-muted);">Loading records...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- Card 2: EXPLAIN Query Cost & Index Analyzer -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">EXPLAIN Query Plan Analyzer</span>
+        <button onclick="runExplain()">Run EXPLAIN</button>
+      </div>
+      <p style="font-size: 0.85rem; color: var(--text-muted);">
+        Inspect access types (<code>const</code>, <code>ref</code>, <code>range</code>, <code>ALL</code>) and detect <code>Using filesort</code> memory bottlenecks.
+      </p>
+      <div>
+        <label>SQL Query to Analyze</label>
+        <textarea id="explain-input" rows="3">SELECT * FROM users WHERE departmentId = 1 ORDER BY salary DESC;</textarea>
+      </div>
+      <div>
+        <label>Execution Plan & Optimizer Assessment</label>
+        <pre id="explain-output">Click 'Run EXPLAIN' to evaluate index fitness.</pre>
+      </div>
+    </div>
+
+    <!-- Card 3: Interactive SQL Query Sandbox (Full Width) -->
+    <div class="card full-width">
+      <div class="card-header">
+        <span class="card-title">Interactive SQL Query Sandbox</span>
+        <div style="display: flex; gap: 0.5rem;">
+          <select id="sample-picker" onchange="loadSampleSql()" style="width: auto; padding: 0.4rem 0.8rem; font-size: 0.8rem;">
+            <option value="0">Sample: Window Function (DENSE_RANK)</option>
+            <option value="1">Sample: Multi-Table Join & Aggregate</option>
+            <option value="2">Sample: Recursive CTE (Org Hierarchy)</option>
+          </select>
+          <button onclick="executeSql()">Execute SQL</button>
+        </div>
+      </div>
+      <div class="grid-2">
+        <div>
+          <label>SQL Query</label>
+          <textarea id="sql-input" rows="8" style="height: 220px;"></textarea>
+        </div>
+        <div>
+          <label>Result Set</label>
+          <pre id="sql-output" style="height: 220px; max-height: 220px;">Execute a query to inspect results...</pre>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    let sqlSamples = [];
+
+    async function checkHealth() {
+      try {
+        const res = await fetch('/api/health');
+        const data = await res.json();
+        document.getElementById('system-status').innerText = `${data.service} (v${data.version}) [${data.mode}]`;
+      } catch {
+        document.getElementById('system-status').innerText = 'Offline / Standalone';
+      }
+    }
+
+    async function loadUsers() {
+      const dept = document.getElementById('dept-filter').value;
+      const search = document.getElementById('search-input').value;
+      const params = new URLSearchParams({ includeDepartment: 'true' });
+      if (dept) params.append('departmentId', dept);
+      if (search) params.append('search', search);
+
+      try {
+        const res = await fetch(`/api/users?${params.toString()}`);
+        const result = await res.json();
+        const tbody = document.getElementById('user-rows');
+        tbody.innerHTML = '';
+        if (!result.data || result.data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="4" style="text-align: center;">No records found</td></tr>';
+          return;
+        }
+        result.data.forEach(u => {
+          const tr = document.createElement('tr');
+          const deptName = u.department?.name || u.departmentName || 'N/A';
+          tr.innerHTML = `
+            <td>#${u.id}</td>
+            <td><strong>${u.firstName} ${u.lastName}</strong><br><small style="color:var(--text-muted);">${u.email}</small></td>
+            <td><span class="badge">${deptName}</span></td>
+            <td>$${(u.salary || 0).toLocaleString()}</td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    async function loadSqlSamples() {
+      try {
+        const res = await fetch('/api/sql/samples');
+        const data = await res.json();
+        sqlSamples = data.samples || [];
+        loadSampleSql();
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    function loadSampleSql() {
+      const idx = document.getElementById('sample-picker').value;
+      if (sqlSamples[idx]) {
+        document.getElementById('sql-input').value = sqlSamples[idx].sql;
+      }
+    }
+
+    async function executeSql() {
+      const sql = document.getElementById('sql-input').value;
+      const out = document.getElementById('sql-output');
+      try {
+        out.innerText = 'Executing query...';
+        const res = await fetch('/api/sql/execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sql })
+        });
+        const data = await res.json();
+        out.innerText = JSON.stringify(data, null, 2);
+      } catch (err) {
+        out.innerText = 'Execution error: ' + err.message;
+      }
+    }
+
+    async function runExplain() {
+      const sql = document.getElementById('explain-input').value;
+      const out = document.getElementById('explain-output');
+      try {
+        out.innerText = 'Evaluating query execution plan...';
+        const res = await fetch('/api/explain', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sql })
+        });
+        const data = await res.json();
+        out.innerText = JSON.stringify(data.optimizerAssessment, null, 2);
+      } catch (err) {
+        out.innerText = 'Error: ' + err.message;
+      }
+    }
+
+    window.addEventListener('DOMContentLoaded', () => {
+      checkHealth();
+      loadUsers();
+      loadSqlSamples();
+      runExplain();
+    });
+  </script>
+</body>
+</html>
