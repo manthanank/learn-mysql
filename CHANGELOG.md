@@ -1,3 +1,12 @@
+# [2.1.0](https://github.com/manthanank/learn-mysql/compare/v1.2.0...v2.1.0) (2026-09-05)
+
+
+### Features
+
+* modernize curriculum, architecture, and CI/CD workflows ([fa50e6a](https://github.com/manthanank/learn-mysql/commit/fa50e6a861a81a4c95be3587f1572f6b0f5be869))
+
+
+
 # [1.2.0](https://github.com/manthanank/learn-mysql/compare/v1.1.0...v1.2.0) (2024-02-08)
 
 
