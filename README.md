@@ -229,6 +229,66 @@ LIMIT 10 OFFSET 0;
 
 ---
 
+
+---
+
+## 1.5 InnoDB Engine Architecture & Memory-Disk Topology
+
+The InnoDB storage engine is architected around in-memory caching structures coordinated with sequential, append-only disk logging.
+
+```mermaid
+flowchart TD
+    subgraph InMemory["In-Memory Structures"]
+        BP["Buffer Pool (Default: 80% RAM)<br/>LRU List: 5/8 Young, 3/8 Old Sublist"]
+        CB["Change Buffer (Buffers secondary index writes)"]
+        AHI["Adaptive Hash Index (O(1) B+Tree index shortcuts)"]
+        LB["Log Buffer (Redo log transactions before disk flush)"]
+    end
+    subgraph OnDisk["On-Disk Physical Structures"]
+        DWB["Doublewrite Buffer (DWB - Prevents Torn Page Writes)"]
+        RedoDisk["Redo Log (ib_logfile0, ib_logfile1 - Circular Ring)"]
+        UndoDisk["Undo Tablespaces (Rollback Segments for MVCC)"]
+        Tablespace["Tablespaces (*.ibd - Pages, Extents, Segments)"]
+    end
+    BP -->|"Dirty Pages Flushed via DWB"| DWB
+    DWB --> Tablespace
+    LB -->|"fsync (innodb_flush_log_at_trx_commit)"| RedoDisk
+    UndoDisk <-->|"Purge Threads reclaim old undo slots"| BP
+```
+
+### 1.5.1 The InnoDB Buffer Pool LRU Eviction Mechanics
+To prevent large table scans (e.g. `mysqldump`) from wiping out frequently accessed hot cached pages, InnoDB splits its Buffer Pool LRU list into two sections:
+- **Young Sublist (New 5/8 = 62.5%)**: Stores actively requested hot pages.
+- **Old Sublist (Old 3/8 = 37.5%)**: Newly read pages are inserted at the **midpoint** (the head of the Old sublist).
+- **Time Threshold (`innodb_old_blocks_time=1000ms`)**: A page must remain in the Old sublist and be accessed again *after at least 1,000ms* before being promoted to the Young sublist.
+
+```mermaid
+flowchart LR
+    DiskRead["Disk Page Read"] --> Midpoint["Inserted at 37% Midpoint (Old Sublist Head)"]
+    Midpoint --> AccCheck{"Accessed again after >1000ms?"}
+    AccCheck -- Yes --> Promoted["Promoted to Head of Young Sublist (Hot)"]
+    AccCheck -- No --> Evicted["Pushed to Tail of Old Sublist & Evicted under memory pressure"]
+```
+
+---
+
+### 1.5.2 The Doublewrite Buffer (DWB) & Torn Page Protection
+Operating system and hardware filesystem blocks are typically $4\text{KB}$, whereas an InnoDB page is $16\text{KB}$. If a sudden power outage occurs while writing an InnoDB page, the operating system might write only $4\text{KB}$ or $8\text{KB}$ of the page, corrupting the page (**Torn Page Write**).
+- **How DWB Solves This**: Before writing a dirty page to the `.ibd` data file, InnoDB writes the complete page sequentially to the contiguous **Doublewrite Buffer** on disk and executes `fsync()`.
+- If a crash occurs during the `.ibd` write, crash recovery reads the pristine page from the DWB and restores the corrupted block before applying Redo log records!
+
+---
+
+### 1.5.3 Redo Log Flush Policies (`innodb_flush_log_at_trx_commit`)
+Governs the balance between ACID durability and write performance:
+
+| Value | Behavior on `COMMIT` | Durability Guarantee | Performance |
+| :--- | :--- | :--- | :--- |
+| **`1` (Default)** | Flushes Log Buffer to OS cache AND executes disk `fsync()` on *every transaction commit* | **100% ACID compliant** (Zero data loss even on power outage) | Lowest IOPS (bounded by disk flush speed) |
+| **`0`** | Flushed and synced once per second; transaction commit does nothing to disk | Loses up to **1 second of transactions** on crash | Highest throughput |
+| **`2`** | Writes Log Buffer to OS page cache on commit, but executes `fsync()` only once per second | Survives MySQL crash; loses up to 1 second **only on OS kernel panic/power cut** | Near-maximum throughput |
+
+
 ## 2. Stage 2: Intermediate Server Architecture & Storage Engines
 
 ---
@@ -1360,6 +1420,143 @@ Group Replication is a high-availability solution providing multi-master update-
 </details>
 
 ---
+
+
+#### Q26: What is the Adaptive Hash Index (AHI) in MySQL InnoDB?
+> **Answer**:
+> The Adaptive Hash Index is an automated internal optimization. When InnoDB notices that certain index pages in the B+ Tree are being queried repeatedly using exact-match lookups, it automatically constructs an in-memory hash table pointing directly to the target buffer pool page, converting $O(\log N)$ B+ Tree lookups into $O(1)$ hash table accesses.
+
+#### Q27: How does Group Commit work in MySQL InnoDB and Binary Logging?
+> **Answer**:
+> In high-concurrency workloads, executing `fsync()` for every individual transaction commit saturates disk controllers. MySQL groups multiple concurrent committing transactions into a single flush batch:
+> 1. **Flush Stage**: A leader thread collects multiple transactions' binlog events and writes them to the OS cache.
+> 2. **Sync Stage**: The leader issues a single `fsync()` for all grouped transactions.
+> 3. **Commit Stage**: All grouped transactions are committed in InnoDB simultaneously.
+
+#### Q28: What is the difference between Statement-Based, Row-Based, and Mixed Replication in MySQL?
+> **Answer**:
+> - **Statement-Based Replication (SBR)**: Records raw SQL queries. Lightweight, but non-deterministic functions (`NOW()`, `UUID()`, `RAND()`, `LIMIT` without `ORDER BY`) cause replica data divergence.
+> - **Row-Based Replication (RBR - Recommended)**: Records the exact physical byte changes for every affected row. 100% deterministic, but can produce large binlog volumes on bulk updates.
+> - **Mixed**: Defaults to Statement-Based, but automatically switches to Row-Based when non-deterministic SQL statements are detected.
+
+#### Q29: What is the MySQL GTID (Global Transaction Identifier)?
+> **Answer**:
+> A GTID (`server_uuid:sequence_number`) uniquely identifies a committed transaction across all replication topologies globally. GTID eliminates the fragile legacy practice of tracking replication positions via arbitrary binlog filenames and byte offsets (`master_log_file`, `master_log_pos`), making failover and topology reconfiguration completely deterministic.
+
+#### Q30: How does the MySQL Query Optimizer choose between a Full Table Scan and an Index Scan?
+> **Answer**:
+> The cost-based optimizer (CBO) queries table and index statistics (`innodb_index_stats`). If an index condition matches more than approximately $20\%\text{--}30\%$ of total table rows, random disk I/O bookmark lookups through the secondary index become slower than a sequential sequential table scan; the optimizer will intentionally ignore the index and execute a Table Scan.
+
+#### Q31: What is the purpose of `OPTIMIZE TABLE` in MySQL?
+> **Answer**:
+> In tables subject to frequent `UPDATE` or `DELETE` operations, pages in the clustered index and secondary indexes become fragmented with empty unused space. `OPTIMIZE TABLE` rebuilds the table online (`ALGORITHM=INPLACE`), compacting data pages, freeing wasted disk space, and updating table index statistics.
+
+#### Q32: What is the difference between `innodb_lock_wait_timeout` and deadlock detection?
+> **Answer**:
+> - **Deadlock Detection (`innodb_deadlock_detect=ON`)**: Instantly traverses the internal transaction Wait-For graph to identify mutual blocking cycles and immediately terminates one transaction with an error.
+> - **Lock Wait Timeout (`innodb_lock_wait_timeout=50s`)**: Applies to non-cyclic lock waits (e.g. Transaction A simply waiting for Transaction B to finish). If Transaction B does not commit within 50 seconds, Transaction A throws `Error 1205: Lock wait timeout exceeded`.
+
+#### Q33: How does Online DDL work in MySQL 8.0?
+> **Answer**:
+> MySQL executes schema modifications without locking the table:
+> - `ALGORITHM=INPLACE`: Modifies metadata or creates a replacement table while an online DDL log (`innodb_online_alter_log_max_size`) buffers concurrent DML inserts/updates. At the end of the operation, buffered changes are applied and metadata locks are held for milliseconds.
+> - `ALGORITHM=INSTANT` (MySQL 8.0.12+): Modifies table metadata in the data dictionary in **0 milliseconds** without rebuilding the table or locking reads/writes (e.g., adding a column at the end of a table).
+
+#### Q34: What is the difference between Primary Key and Unique Key in InnoDB?
+> **Answer**:
+> - **Primary Key**: Automatically chosen as the **Clustered Index**. Data rows are physically stored on its B+ Tree leaf pages. Cannot contain `NULL` values. Exactly one per table.
+> - **Unique Key**: Secondary non-clustered index. Can contain multiple `NULL` values (since in SQL standard, `NULL != NULL`). Its leaf nodes store pointers back to the Primary Key.
+
+#### Q35: What is the Change Buffer in InnoDB?
+> **Answer**:
+> When an `INSERT`, `UPDATE`, or `DELETE` modifies a secondary index that is not in the Buffer Pool, reading that index page from disk into RAM would incur expensive random disk I/O. Instead, InnoDB records the change in the in-memory **Change Buffer**. When that secondary index page is subsequently read into the buffer pool by another query, the buffered changes are merged into the page in RAM.
+
+#### Q36: What is Multi-Threaded Replication (MTS) in MySQL?
+> **Answer**:
+> By default, the replication SQL thread on a replica executes transactions sequentially, leading to replica lag under high write loads. MySQL MTS spawns multiple worker threads that apply independent transactions in parallel:
+> - `replica_parallel_type=LOGICAL_CLOCK`: Evaluates which transactions were committed together in the primary's Group Commit and applies them concurrently on replicas with zero race conditions.
+
+#### Q37: What is the difference between semi-synchronous replication and asynchronous replication?
+> **Answer**:
+> - **Asynchronous (Default)**: Primary writes to binlog and immediately returns success to client without waiting for replicas. If primary crashes, committed transactions not yet received by replicas are lost.
+> - **Semi-Synchronous**: Primary writes to binlog and **blocks** until at least one replica acknowledges that it has received and written the event to its Relay Log, guaranteeing zero transaction loss.
+
+#### Q38: How do you configure MySQL for high connection concurrency?
+> **Answer**:
+> 1. Set `max_connections=2000`.
+> 2. Increase thread cache size: `thread_cache_size=100` (avoids destroying/re-creating OS threads per connection).
+> 3. Use an external connection pooler like **ProxySQL** or **MySQL Router** to multiplex thousands of client connections over a compact pool of backend persistent sockets.
+
+#### Q39: What is the purpose of the Slow Query Log?
+> **Answer**:
+> The slow query log records queries that exceed `long_query_time` (e.g., `long_query_time=0.5` for 500ms) or queries that do not use indexes (`log_queries_not_using_indexes=ON`). Analyzed using `mysqldumpslow` or `pt-query-digest` to identify performance bottlenecks.
+
+#### Q40: What is the difference between `TRUNCATE` and `DELETE` in MySQL?
+> **Answer**:
+> - `DELETE FROM table`: DML statement. Scans rows, evaluates triggers, writes every deleted row to Undo and Redo logs, and leaves tablespace disk pages allocated.
+> - `TRUNCATE TABLE`: DDL statement. Drops the physical data file (`.ibd`) and recreates an empty one in the data dictionary, resetting `AUTO_INCREMENT` and reclaiming disk space instantaneously.
+
+#### Q41: What is a Generated (Virtual/Stored) Column in MySQL?
+> **Answer**:
+> - **VIRTUAL**: Calculated on the fly when read; takes zero disk space. Can be indexed!
+> - **STORED**: Calculated on insert/update and physically written to disk alongside table data.
+
+#### Q42: What is the purpose of `innodb_dedicated_server=ON`?
+> **Answer**:
+> When MySQL runs on a dedicated VM or container, enabling `innodb_dedicated_server` automatically detects physical RAM and configures optimal memory settings:
+> - Buffer Pool size: Set to $50\%\text{--}75\%$ of total system RAM.
+> - Log Buffer size: Scaled automatically.
+> - Redo Log capacity: Tuned dynamically based on RAM.
+
+#### Q43: What is the difference between `utf8` and `utf8mb4` in MySQL?
+> **Answer**:
+> - `utf8` (alias for `utf8mb3`): Deprecated legacy encoding that supports at most 3 bytes per character. **Fails on 4-byte Unicode characters** (emojis, complex Asian characters, mathematical symbols).
+> - `utf8mb4`: Standard UTF-8 encoding supporting up to 4 bytes per character. **Always use `utf8mb4` with collation `utf8mb4_0900_ai_ci`!**
+
+#### Q44: What is the MySQL Performance Schema?
+> **Answer**:
+> The Performance Schema (`performance_schema`) is an internal instrumentation engine built into MySQL source code. It monitors low-level server execution events, mutex contentions, I/O waits, memory allocations, and lock latencies with negligible runtime overhead ($\approx 1\text{--}2\%$).
+
+#### Q45: How do you identify the longest running query currently executing in MySQL?
+> **Answer**:
+> ```sql
+> SELECT id, user, host, db, command, time, state, info
+> FROM information_schema.processlist
+> WHERE command != 'Sleep'
+> ORDER BY time DESC
+> LIMIT 5;
+> ```
+> Or kill a hung query safely: `KILL QUERY <id>;`.
+
+#### Q46: What is a Loose Index Scan vs Tight Index Scan in MySQL?
+> **Answer**:
+> - **Tight Index Scan**: Standard index scan that evaluates consecutive index ranges.
+> - **Loose Index Scan**: Efficiently evaluates queries like `SELECT DISTINCT col1 FROM table` or `SELECT MIN(col2) FROM table GROUP BY col1`. Instead of scanning all index rows, it skips directly to the next distinct value in the index like a B+ Tree index skip scan.
+
+#### Q47: What is the purpose of `EXPLAIN FORMAT=TREE` in MySQL 8.0?
+> **Answer**:
+> MySQL 8.0 introduces `FORMAT=TREE`, displaying the true hierarchical relational operator tree:
+> - Shows exact iterator execution order (Filter, Index Scan, Nested Loop Inner Join, Hash Join, Aggregate).
+> - Displays actual join algorithms and cost estimations in an easy-to-read indented format.
+
+#### Q48: How does MySQL 8.0 handle JSON documents and JSON Indexes?
+> **Answer**:
+> MySQL 8.0 stores JSON as an optimized binary format (`BSON-like`), allowing fast sub-field access without parsing strings.
+> - **Multi-Valued Indexes**: Allows indexing array attributes directly inside JSON columns (`CREATE INDEX idx_tags ON products((CAST(tags AS CHAR(32) ARRAY))));`).
+
+#### Q49: What is the difference between `SELECT ... FOR SHARE` and `SELECT ... FOR UPDATE`?
+> **Answer**:
+> - `FOR SHARE`: Acquires a Shared (S) lock on the read rows. Allows other transactions to read, but blocks any transaction from updating or acquiring Exclusive locks until commit.
+> - `FOR UPDATE`: Acquires an Exclusive (X) lock. Blocks all other transactions from updating, deleting, or reading with locks.
+
+#### Q50: How do you design a high-availability MySQL cluster with zero-data-loss failover?
+> **Answer**:
+> Use **MySQL InnoDB Cluster with Group Replication**:
+> 1. Three or more MySQL nodes operating under the Paxos consensus algorithm.
+> 2. Replicates transactions via Group Replication (virtual synchrony).
+> 3. An automated failover router (**MySQL Router**) routes application traffic to the active primary.
+> 4. If the primary node fails, remaining nodes reach quorum ($>50\%$), automatically elect a new primary, and redirect traffic within seconds with guaranteed zero transaction loss.
+
 
 ## 7. Stage 7: Interactive Platform, Simulator & REST API Reference
 
