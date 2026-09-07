@@ -1,6 +1,6 @@
 {
   "name": "learn-mysql",
-  "version": "2.1.0",
+  "version": "2.2.0",
   "type": "module",
   "description": "Comprehensive enterprise curriculum, production guide, and interactive SQL sandbox for MySQL 8 and InnoDB.",
   "main": "dist/server.js",
